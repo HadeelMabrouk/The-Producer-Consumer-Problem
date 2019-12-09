@@ -4,6 +4,8 @@
 #include <semaphore.h>
 #include <stdio.h>
 #include <time.h>
+#include <ctype.h>
+#include <string.h>
 
 
 #define BUFFER_SIZE     5
@@ -36,8 +38,6 @@ void *producer() {
         item = rand()%50;
         if (insert_item(item))
             printf("report error condition");
-        else
-            printf("producer produced %d \n",item);
     }
 }
 
@@ -48,8 +48,6 @@ void *consumer() {
         sleep(rand()%10+3);
         if (remove_item(&item))
             printf("report error condition");
-        else
-            printf("consumer consumed %d \n",item);
     }
 }
 
@@ -68,6 +66,7 @@ int insert_item(buffer_item item) {
         ++count;
         buffer[in]= item;
         in = (in+1)%BUFFER_SIZE;
+        printf("producer produced %d \n",item);
 
         sem_post(&mutex);
         sem_post(&full);
@@ -89,7 +88,7 @@ int remove_item(buffer_item *item) {
         --count;
         *item = buffer[out];
         out=(out+1)%BUFFER_SIZE;
-
+	printf("consumer consumed %d \n", *item);
         sem_post(&mutex);
         sem_post(&empty);
         return 0; //successful
@@ -113,27 +112,47 @@ void initialize_data() {
 
 
 int main(int argc, char *argv[]) {
+	
+    /*Input Validation*/
+    int flag = 0;
+    if (argc != 4 || atoi(argv[1])==0 || atoi(argv[2])==0 || atoi(argv[3])==0)
+    {
+        printf("Invalid Input! \n");
+    }
+    else
+    {
+	for (int i=0;i<strlen(argv[1]) && !flag;i++)
+		if(!isdigit(argv[1][i]))
+			flag=1;
+	for (int i=0;i<strlen(argv[2]) && !flag;i++)
+		if(!isdigit(argv[2][i]))
+			flag=1;
+	for (int i=0;i<strlen(argv[3]) && !flag;i++)
+		if(!isdigit(argv[3][i]))
+			flag=1;
+	if(flag)
+	{
+		printf("Invalid Input! \n");
+		printf("Exit the program \n");
+    		exit(0);
+	} 
+        srand(time(0));
+        initialize_data();
  
-    /* 1. Get command line arguments argv[1],argv[2],argv[3] */
-    /*cout << "You have entered " << argc << " arguments:" << "\n"; 
-    for (int i = 0; i < argc; ++i) 
-        cout << argv[i] << "\n"; */
-    srand(time(0));
+        /* Create producer thread(s) */
+        for ( int i = 0; i < atoi(argv[2]); i++) 
+            pthread_create(&tid, &attr, producer, NULL); 
 
-    initialize_data();
- 
-    /* 3. Create producer thread(s) */
-    for ( int i = 0; i < atoi(argv[2]); i++) 
-        pthread_create(&tid, &attr, producer, NULL); 
+        /* Create consumer thread(s) */
+        for ( int i = 0; i < atoi(argv[3]); i++) 
+            pthread_create(&tid, &attr, consumer, NULL); 
 
-    /* 4. Create consumer thread(s) */
-    for ( int i = 0; i < atoi(argv[3]); i++) 
-        pthread_create(&tid, &attr, consumer, NULL); 
+        /* Sleep */
+        sleep(atoi(argv[1]));
+    }	
+    
 
-    /* 5. Sleep */
-    sleep(atoi(argv[1]));
-
-    /* 6. Exit */
+    /* Exit */
     printf("Exit the program \n");
     exit(0);
 }
